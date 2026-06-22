@@ -307,7 +307,25 @@ Example error response:
   "status": 409,
   "error": "Conflict",
   "message": "Invalid status transition from OPEN to CLOSED",
-  "timestamp": "2026-06-22T10:30:00"
+  "timestamp": "2026-06-22T10:30:00",
+  "path": "/api/tickets/1/status",
+  "details": null
+}
+```
+
+Validation error response example:
+
+```json
+{
+  "status": 400,
+  "error": "Bad Request",
+  "message": "Validation failed",
+  "timestamp": "2026-06-22T10:30:00",
+  "path": "/api/users",
+  "details": {
+    "email": "email must be a valid email address",
+    "name": "name must not be blank"
+  }
 }
 ```
 
@@ -365,7 +383,61 @@ If using the Maven wrapper on Windows:
 
 9. Test the API using Postman or curl.
 
-## 13. Database Setup SQL
+## 13. Frontend Setup
+
+The project includes a modern React + Vite frontend in the `frontend` folder.
+
+Frontend technology:
+
+* React + Vite
+* JavaScript
+* Tailwind CSS
+* Axios
+* React Router DOM
+* Lucide React icons
+* Framer Motion animations
+* Google Font: Inter
+
+Backend must be running on:
+
+```text
+http://localhost:8080
+```
+
+Frontend runs on:
+
+```text
+http://localhost:5173
+```
+
+Start the frontend:
+
+```bash
+cd frontend
+npm install
+npm install lucide-react framer-motion
+npm run dev
+```
+
+The backend has CORS enabled for:
+
+```text
+http://localhost:5173
+```
+
+Frontend features:
+
+* Role selector without authentication.
+* Modern black-and-white admin dashboard UI.
+* Sidebar navigation and top header.
+* Dashboard metric cards with icons.
+* Create users.
+* Create agents.
+* Create and search tickets.
+* Ticket details with assignment, status update, comments, and status timeline.
+* Reports for overdue tickets and average resolution time.
+
+## 14. Database Setup SQL
 
 The full PostgreSQL DDL script is included in the project under:
 
@@ -380,7 +452,7 @@ docs/schema.sql
 src/main/resources/schema.sql
 ```
 
-## 14. Testing Evidence
+## 15. Testing Evidence
 
 The API should be tested with Postman or curl. Testing should confirm both successful flows and rejected business rule violations.
 
@@ -410,7 +482,7 @@ Or on Windows using the Maven wrapper:
 .\mvnw.cmd test
 ```
 
-## 15. Assumptions
+## 16. Assumptions
 
 * Authentication is not required because the assignment focuses on backend domain logic.
 * A ticket always starts as `OPEN`.
@@ -421,7 +493,7 @@ Or on Windows using the Maven wrapper:
 * `from_status` in `ticket_status_history` can be `null` only for the first ticket creation history record.
 * Business rules are enforced in the service layer.
 
-## 16. Important Design Notes
+## 17. Important Design Notes
 
 This project is designed using layered architecture. Controllers are responsible only for HTTP requests and responses. Services contain business rules such as status transition validation, SLA calculations, and assignment restrictions. Repositories are responsible only for database access.
 
@@ -429,7 +501,7 @@ The ticket `status` field is not freely editable. It is controlled by a state ma
 
 The application also uses DTOs instead of exposing entity objects directly. This makes the API clearer, safer, and easier to change in the future.
 
-## 17. Future Improvements
+## 18. Future Improvements
 
 * Add authentication and roles.
 * Add email notifications.

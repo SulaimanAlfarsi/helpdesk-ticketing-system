@@ -1222,7 +1222,7 @@ Example:
   "message": "Invalid status transition from OPEN to CLOSED",
   "timestamp": "2026-06-22T10:30:00",
   "path": "/api/tickets/1/status",
-  "fieldErrors": null
+  "details": null
 }
 ```
 

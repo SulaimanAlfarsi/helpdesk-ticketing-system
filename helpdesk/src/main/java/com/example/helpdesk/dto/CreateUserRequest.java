@@ -5,7 +5,13 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
 public record CreateUserRequest(
-        @NotBlank @Size(max = 100) String name,
-        @NotBlank @Email @Size(max = 255) String email
+        @NotBlank(message = "name must not be blank")
+        @Size(max = 100, message = "name must be at most 100 characters")
+        String name,
+
+        @NotBlank(message = "email must not be blank")
+        @Email(message = "email must be a valid email address")
+        @Size(max = 255, message = "email must be at most 255 characters")
+        String email
 ) {
 }

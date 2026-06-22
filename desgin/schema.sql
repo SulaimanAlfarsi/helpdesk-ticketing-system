@@ -1,10 +1,3 @@
-DROP TABLE IF EXISTS ticket_status_history;
-DROP TABLE IF EXISTS comments;
-DROP TABLE IF EXISTS tickets;
-DROP TABLE IF EXISTS sla_policies;
-DROP TABLE IF EXISTS agents;
-DROP TABLE IF EXISTS users;
-
 CREATE TABLE users (
                        id BIGSERIAL PRIMARY KEY,
                        name VARCHAR(100) NOT NULL,

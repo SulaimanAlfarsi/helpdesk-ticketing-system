@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
 import { ArrowRight, ShieldCheck, UserRound, Users } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { getRoleHome } from "../utils/roles.js";
 
 const roles = [
   {
@@ -28,7 +29,7 @@ export default function RoleSelector() {
 
   function chooseRole(role) {
     localStorage.setItem("helpdeskRole", role);
-    navigate("/dashboard");
+    navigate(getRoleHome(role));
   }
 
   return (
@@ -64,7 +65,7 @@ export default function RoleSelector() {
               <h2 className="mt-5 text-xl font-bold text-neutral-950">{role.title}</h2>
               <p className="mt-3 text-sm leading-6 text-neutral-600">{role.description}</p>
               <span className="mt-6 inline-flex items-center gap-2 text-sm font-bold text-neutral-950">
-                Enter dashboard <ArrowRight className="h-4 w-4" />
+                Enter workspace <ArrowRight className="h-4 w-4" />
               </span>
             </motion.button>
           );})}

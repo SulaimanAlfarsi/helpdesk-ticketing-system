@@ -19,6 +19,11 @@ const statuses = ["OPEN", "IN_PROGRESS", "RESOLVED", "CLOSED", "REOPENED"];
 
 export default function TicketDetails() {
   const { id } = useParams();
+  const selectedRole = localStorage.getItem("helpdeskRole") || "Employee/User";
+  const isEmployee = selectedRole === "Employee/User";
+  const isAgent = selectedRole === "Agent";
+  const isManager = selectedRole === "Manager";
+  const canAssignTicket = isAgent || isManager;
   const [ticket, setTicket] = useState(null);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -27,11 +32,84 @@ export default function TicketDetails() {
   const [statusForm, setStatusForm] = useState({ newStatus: "IN_PROGRESS", changedByType: "AGENT", changedById: "" });
   const [commentForm, setCommentForm] = useState({ authorType: "USER", authorId: "", message: "" });
 
+  function getChangedByOptions(ticketData) {
+    if (!ticketData) {
+      return [];
+    }
+
+    if (isManager) {
+      return [{ value: "SYSTEM:", label: "System / Manager action" }];
+    }
+
+    if (isAgent) {
+      return ticketData.assignedAgent
+        ? [{
+            value: `AGENT:${ticketData.assignedAgent.id}`,
+            label: `Assigned agent - ${ticketData.assignedAgent.name} (ID ${ticketData.assignedAgent.id})`
+          }]
+        : [];
+    }
+
+    if (isEmployee) {
+      return ticketData.raisedByUser
+        ? [{
+            value: `USER:${ticketData.raisedByUser.id}`,
+            label: `Raising user - ${ticketData.raisedByUser.name} (ID ${ticketData.raisedByUser.id})`
+          }]
+        : [];
+    }
+
+    return [];
+  }
+
+  function getCommentAuthorOptions(ticketData) {
+    if (!ticketData) {
+      return [];
+    }
+
+    if (isEmployee && ticketData.raisedByUser) {
+      return [{
+        value: `USER:${ticketData.raisedByUser.id}`,
+        label: `Raising user - ${ticketData.raisedByUser.name} (ID ${ticketData.raisedByUser.id})`
+      }];
+    }
+
+    if (isAgent && ticketData.assignedAgent) {
+      return [{
+        value: `AGENT:${ticketData.assignedAgent.id}`,
+        label: `Assigned agent - ${ticketData.assignedAgent.name} (ID ${ticketData.assignedAgent.id})`
+      }];
+    }
+
+    return [];
+  }
+
+  function applyOptionToStatus(optionValue) {
+    const [changedByType, changedById = ""] = optionValue.split(":");
+    setStatusForm((previous) => ({ ...previous, changedByType, changedById }));
+  }
+
+  function applyOptionToComment(optionValue) {
+    const [authorType, authorId = ""] = optionValue.split(":");
+    setCommentForm((previous) => ({ ...previous, authorType, authorId }));
+  }
+
   async function loadTicket() {
     setError("");
     try {
       const data = await getTicketById(id);
       setTicket(data);
+      const defaultChangedBy = getChangedByOptions(data)[0];
+      if (defaultChangedBy) {
+        const [changedByType, changedById = ""] = defaultChangedBy.value.split(":");
+        setStatusForm((previous) => ({ ...previous, changedByType, changedById }));
+      }
+
+      const defaultCommentAuthor = getCommentAuthorOptions(data)[0];
+      if (defaultCommentAuthor) {
+        const [authorType, authorId = ""] = defaultCommentAuthor.value.split(":");
+        setCommentForm((previous) => ({ ...previous, authorType, authorId }));
+      }
     } catch (err) {
       setError(getErrorMessage(err));
     }
@@ -49,6 +127,14 @@ export default function TicketDetails() {
     setStatusForm({ ...statusForm, [event.target.name]: event.target.value });
   }
 
+  function updateChangedBy(event) {
+    applyOptionToStatus(event.target.value);
+  }
+
+  function updateCommentAuthor(event) {
+    applyOptionToComment(event.target.value);
+  }
+
   function updateComment(event) {
     setCommentForm({ ...commentForm, [event.target.name]: event.target.value });
   }
@@ -57,11 +143,30 @@ export default function TicketDetails() {
     event.preventDefault();
     setError("");
     setSuccess("");
+
+    if (!canAssignTicket) {
+      setError("Only Agent or Manager roles can assign tickets in this frontend.");
+      return;
+    }
+
     setLoadingAction("assign");
 
     try {
       const updated = await assignTicket(id, { agentId: Number(assignForm.agentId) });
       setTicket(updated);
+      if (updated.assignedAgent?.id) {
+        const defaultChangedBy = getChangedByOptions(updated)[0];
+        if (defaultChangedBy) {
+          const [changedByType, changedById = ""] = defaultChangedBy.value.split(":");
+          setStatusForm((previous) => ({ ...previous, changedByType, changedById }));
+        }
+
+        const defaultCommentAuthor = getCommentAuthorOptions(updated)[0];
+        if (defaultCommentAuthor) {
+          const [authorType, authorId = ""] = defaultCommentAuthor.value.split(":");
+          setCommentForm((previous) => ({ ...previous, authorType, authorId }));
+        }
+      }
       setAssignForm({ agentId: "" });
       setSuccess("Ticket assigned successfully.");
     } catch (err) {
@@ -75,6 +180,12 @@ export default function TicketDetails() {
     event.preventDefault();
     setError("");
     setSuccess("");
+
+    if (changedByOptions.length === 0) {
+      setError("Current role cannot update status for this ticket. Agents need an assigned agent, and users can only act as the raising user.");
+      return;
+    }
+
     setLoadingAction("status");
 
     try {
@@ -96,6 +207,12 @@ export default function TicketDetails() {
     event.preventDefault();
     setError("");
     setSuccess("");
+
+    if (commentAuthorOptions.length === 0) {
+      setError("Current role cannot add comments for this ticket. Users can comment as the raising user, and agents can comment as the assigned agent.");
+      return;
+    }
+
     setLoadingAction("comment");
 
     try {
@@ -103,7 +220,13 @@ export default function TicketDetails() {
         ...commentForm,
         authorId: Number(commentForm.authorId)
       });
-      setCommentForm({ authorType: "USER", authorId: "", message: "" });
+      const defaultCommentAuthor = getCommentAuthorOptions(ticket)[0];
+      if (defaultCommentAuthor) {
+        const [authorType, authorId = ""] = defaultCommentAuthor.value.split(":");
+        setCommentForm({ authorType, authorId, message: "" });
+      } else {
+        setCommentForm({ authorType: "USER", authorId: "", message: "" });
+      }
       setSuccess("Comment added successfully.");
       loadTicket();
     } catch (err) {
@@ -116,6 +239,12 @@ export default function TicketDetails() {
   if (!ticket && !error) {
     return <LoadingSpinner label="Loading ticket details..." />;
   }
+
+  const changedByOptions = getChangedByOptions(ticket);
+  const commentAuthorOptions = getCommentAuthorOptions(ticket);
+
+  const selectedChangedBy = `${statusForm.changedByType}:${statusForm.changedById || ""}`;
+  const selectedCommentAuthor = `${commentForm.authorType}:${commentForm.authorId || ""}`;
 
   return (
     <section className="space-y-6">
@@ -208,39 +337,73 @@ export default function TicketDetails() {
           </div>
 
           <aside className="space-y-4">
-            <form onSubmit={submitAssign} className="card space-y-4">
-              <h3 className="text-lg font-bold text-neutral-950">Assign Agent</h3>
-              <input name="agentId" value={assignForm.agentId} onChange={updateAssign} placeholder="Agent ID" className="form-input" />
-              <motion.button whileTap={{ scale: 0.98 }} className="btn-primary w-full" type="submit" disabled={loadingAction === "assign"}>
-                {loadingAction === "assign" ? "Assigning..." : "Assign"}
-              </motion.button>
-            </form>
+            <div className="card">
+              <p className="text-sm font-bold text-neutral-950">Frontend permission role</p>
+              <p className="mt-2 text-sm text-neutral-600">{selectedRole}</p>
+              <p className="mt-2 text-xs leading-5 text-neutral-500">
+                This is a UI-only permission guard. The project still has no authentication.
+              </p>
+            </div>
+
+            {canAssignTicket ? (
+              <form onSubmit={submitAssign} className="card space-y-4">
+                <h3 className="text-lg font-bold text-neutral-950">Assign Agent</h3>
+                <input name="agentId" value={assignForm.agentId} onChange={updateAssign} placeholder="Agent ID" className="form-input" />
+                <motion.button whileTap={{ scale: 0.98 }} className="btn-primary w-full" type="submit" disabled={loadingAction === "assign"}>
+                  {loadingAction === "assign" ? "Assigning..." : "Assign"}
+                </motion.button>
+              </form>
+            ) : (
+              <div className="card">
+                <h3 className="text-lg font-bold text-neutral-950">Assign Agent</h3>
+                <p className="mt-2 text-sm leading-6 text-neutral-500">Employees cannot assign tickets. Switch to Agent or Manager role to use this action.</p>
+              </div>
+            )}
 
             <form onSubmit={submitStatus} className="card space-y-4">
               <h3 className="text-lg font-bold text-neutral-950">Update Status</h3>
-              <select name="newStatus" value={statusForm.newStatus} onChange={updateStatus} className="form-input">
-                {statuses.map((status) => <option key={status}>{status}</option>)}
-              </select>
-              <select name="changedByType" value={statusForm.changedByType} onChange={updateStatus} className="form-input">
-                <option>USER</option>
-                <option>AGENT</option>
-                <option>SYSTEM</option>
-              </select>
-              <input name="changedById" value={statusForm.changedById} onChange={updateStatus} placeholder="Changed by ID" className="form-input" />
-              <motion.button whileTap={{ scale: 0.98 }} className="btn-primary w-full" type="submit" disabled={loadingAction === "status"}>
+              <div>
+                <label className="form-label" htmlFor="newStatus">New status</label>
+                <select id="newStatus" name="newStatus" value={statusForm.newStatus} onChange={updateStatus} className="form-input mt-1">
+                  {statuses.map((status) => <option key={status}>{status}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="form-label" htmlFor="changedBy">Changed by</label>
+                <select id="changedBy" value={selectedChangedBy} onChange={updateChangedBy} className="form-input mt-1" disabled={changedByOptions.length === 0}>
+                  {changedByOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+                <p className="mt-2 text-xs text-neutral-500">
+                  {changedByOptions.length > 0
+                    ? "This fills changedByType and changedById based on the selected frontend role."
+                    : "No valid status actor is available for this role and ticket."}
+                </p>
+              </div>
+              <motion.button whileTap={{ scale: 0.98 }} className="btn-primary w-full" type="submit" disabled={loadingAction === "status" || changedByOptions.length === 0}>
                 {loadingAction === "status" ? "Updating..." : "Update Status"}
               </motion.button>
             </form>
 
             <form onSubmit={submitComment} className="card space-y-4">
               <h3 className="text-lg font-bold text-neutral-950">Add Comment</h3>
-              <select name="authorType" value={commentForm.authorType} onChange={updateComment} className="form-input">
-                <option>USER</option>
-                <option>AGENT</option>
+              <select value={selectedCommentAuthor} onChange={updateCommentAuthor} className="form-input" disabled={commentAuthorOptions.length === 0}>
+                {commentAuthorOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
               </select>
-              <input name="authorId" value={commentForm.authorId} onChange={updateComment} placeholder="Author ID" className="form-input" />
+              {commentAuthorOptions.length === 0 && (
+                <p className="text-xs leading-5 text-neutral-500">
+                  Managers cannot add comments because the backend supports only USER and AGENT comment authors. Agents need to be assigned first.
+                </p>
+              )}
               <textarea name="message" value={commentForm.message} onChange={updateComment} placeholder="Message" rows="3" className="form-input" />
-              <motion.button whileTap={{ scale: 0.98 }} className="btn-primary w-full" type="submit" disabled={loadingAction === "comment"}>
+              <motion.button whileTap={{ scale: 0.98 }} className="btn-primary w-full" type="submit" disabled={loadingAction === "comment" || commentAuthorOptions.length === 0}>
                 <Send className="h-4 w-4" />
                 {loadingAction === "comment" ? "Adding..." : "Add Comment"}
               </motion.button>

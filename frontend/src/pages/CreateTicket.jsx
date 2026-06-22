@@ -42,7 +42,7 @@ export default function CreateTicket() {
       <PageHeader
         eyebrow="New request"
         title="Create Ticket"
-        description="Create a support ticket for an existing employee. The backend will assign the SLA policy based on priority."
+        description="Employee/User role creates support tickets for existing employees. Agents and managers manage tickets from their own pages."
       />
       <motion.form initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} onSubmit={submit} className="card space-y-4">
         <ErrorAlert message={error} />

@@ -98,12 +98,3 @@ CREATE TABLE ticket_status_history (
                                        CONSTRAINT chk_history_changed_by_type
                                            CHECK (changed_by_type IN ('USER', 'AGENT', 'SYSTEM'))
 );
-
-INSERT INTO sla_policies (priority, sla_hours)
-VALUES
-    ('CRITICAL', 4),
-    ('HIGH', 24),
-    ('MEDIUM', 72),
-    ('LOW', 168)
-ON CONFLICT (priority) DO UPDATE
-SET sla_hours = EXCLUDED.sla_hours;

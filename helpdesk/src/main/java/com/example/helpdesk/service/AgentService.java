@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Service
 public class AgentService {
@@ -32,6 +33,13 @@ public class AgentService {
         agent.setCreatedAt(LocalDateTime.now());
 
         return toResponse(agentRepository.save(agent));
+    }
+    @Transactional(readOnly = true)
+    public List<AgentResponse> getAllAgents() {
+        return agentRepository.findAll()
+                .stream()
+                .map(this::toResponse)
+                .toList();
     }
 
     public AgentResponse toResponse(Agent agent) {

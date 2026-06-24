@@ -21,6 +21,10 @@ public class UserService {
 
     @Transactional
     public UserResponse createUser(CreateUserRequest request) {
+        if (!request.email().matches("^[\\w.+\\-]+@[\\w.\\-]+\\.[a-zA-Z]{2,3}$")) {
+            throw new BusinessRuleException("Email must have a valid domain (e.g. .com or .om)");
+        }
+
         if (userRepository.existsByEmail(request.email())) {
             throw new BusinessRuleException("User email already exists");
         }

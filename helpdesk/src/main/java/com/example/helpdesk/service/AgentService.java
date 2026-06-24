@@ -21,6 +21,10 @@ public class AgentService {
 
     @Transactional
     public AgentResponse createAgent(CreateAgentRequest request) {
+        if (!request.email().matches("^[\\w.+\\-]+@[\\w.\\-]+\\.[a-zA-Z]{2,3}$")) {
+            throw new BusinessRuleException("Email must have a valid domain (e.g. .com or .om)");
+        }
+
         if (agentRepository.existsByEmail(request.email())) {
             throw new BusinessRuleException("Agent email already exists");
         }

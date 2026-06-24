@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Service
 public class UserService {
@@ -31,6 +32,13 @@ public class UserService {
         user.setCreatedAt(LocalDateTime.now());
 
         return toResponse(userRepository.save(user));
+    }
+    @Transactional(readOnly = true)
+    public List<UserResponse> getAllUsers() {
+        return userRepository.findAll()
+                .stream()
+                .map(this::toResponse)
+                .toList();
     }
 
     public UserResponse toResponse(User user) {

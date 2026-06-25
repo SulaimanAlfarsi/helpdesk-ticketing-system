@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { PlusCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { createTicket, getErrorMessage } from "../api/api.js";
+import { createTicket, getErrorMessage, getUsers } from "../api/api.js";
 import ErrorAlert from "../components/ErrorAlert.jsx";
 import PageHeader from "../components/PageHeader.jsx";
 
@@ -15,8 +15,31 @@ export default function CreateTicket() {
     category: "",
     raisedByUserId: ""
   });
+  const [users, setUsers] = useState([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+
+  useEffect(() => {
+    async function loadUsers() {
+      setLoadingUsers(true);
+      setError("");
+
+      try {
+        const data = await getUsers();
+        setUsers(data);
+        if (data.length > 0) {
+          setForm((previous) => ({ ...previous, raisedByUserId: String(data[0].id) }));
+        }
+      } catch (err) {
+        setError(getErrorMessage(err));
+      } finally {
+        setLoadingUsers(false);
+      }
+    }
+
+    loadUsers();
+  }, []);
 
   function updateField(event) {
     setForm({ ...form, [event.target.name]: event.target.value });
@@ -48,11 +71,11 @@ export default function CreateTicket() {
         <ErrorAlert message={error} />
         <div>
           <label className="form-label" htmlFor="title">Title</label>
-          <input id="title" name="title" value={form.title} onChange={updateField} className="form-input mt-1" />
+          <input id="title" name="title" value={form.title} onChange={updateField} className="form-input mt-1" required />
         </div>
         <div>
           <label className="form-label" htmlFor="description">Description</label>
-          <textarea id="description" name="description" value={form.description} onChange={updateField} rows="4" className="form-input mt-1" />
+          <textarea id="description" name="description" value={form.description} onChange={updateField} rows="4" className="form-input mt-1" required />
         </div>
         <div className="grid gap-4 sm:grid-cols-3">
           <div>
@@ -66,14 +89,30 @@ export default function CreateTicket() {
           </div>
           <div>
             <label className="form-label" htmlFor="category">Category</label>
-            <input id="category" name="category" value={form.category} onChange={updateField} className="form-input mt-1" />
+            <input id="category" name="category" value={form.category} onChange={updateField} className="form-input mt-1" required />
           </div>
           <div>
             <label className="form-label" htmlFor="raisedByUserId">Raised by user ID</label>
-            <input id="raisedByUserId" name="raisedByUserId" value={form.raisedByUserId} onChange={updateField} className="form-input mt-1" />
+            <select
+              id="raisedByUserId"
+              name="raisedByUserId"
+              value={form.raisedByUserId}
+              onChange={updateField}
+              className="form-input mt-1"
+              disabled={loadingUsers || users.length === 0}
+              required
+            >
+              {loadingUsers && <option value="">Loading users...</option>}
+              {!loadingUsers && users.length === 0 && <option value="">No users available</option>}
+              {!loadingUsers && users.map((user) => (
+                <option key={user.id} value={user.id}>
+                  {user.name} (ID {user.id})
+                </option>
+              ))}
+            </select>
           </div>
         </div>
-        <motion.button whileTap={{ scale: 0.98 }} type="submit" disabled={loading} className="btn-primary">
+        <motion.button whileTap={{ scale: 0.98 }} type="submit" disabled={loading || loadingUsers || users.length === 0} className="btn-primary">
           <PlusCircle className="h-4 w-4" />
           {loading ? "Creating..." : "Create Ticket"}
         </motion.button>

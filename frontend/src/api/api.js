@@ -18,7 +18,33 @@ export function getErrorMessage(error) {
 
 export const createUser = (payload) => api.post("/users", payload).then((res) => res.data);
 
+export const getUsers = async () => {
+  try {
+    const response = await api.get("/users");
+    return response.data;
+  } catch (error) {
+    if ([404, 405].includes(error?.response?.status)) {
+      const response = await api.get("/users/all");
+      return response.data;
+    }
+    throw error;
+  }
+};
+
 export const createAgent = (payload) => api.post("/agents", payload).then((res) => res.data);
+
+export const getAgents = async () => {
+  try {
+    const response = await api.get("/agents");
+    return response.data;
+  } catch (error) {
+    if ([404, 405].includes(error?.response?.status)) {
+      const response = await api.get("/agents/all");
+      return response.data;
+    }
+    throw error;
+  }
+};
 
 export const createTicket = (payload) => api.post("/tickets", payload).then((res) => res.data);
 

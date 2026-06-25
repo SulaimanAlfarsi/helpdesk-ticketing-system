@@ -11,6 +11,8 @@ import com.example.helpdesk.enums.Priority;
 import com.example.helpdesk.enums.TicketStatus;
 import com.example.helpdesk.service.TicketService;
 import jakarta.validation.Valid;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -68,13 +70,14 @@ public class TicketController {
     }
 
     @GetMapping
-    public ResponseEntity<List<TicketResponse>> searchTickets(
+    public ResponseEntity<Page<TicketResponse>> searchTickets(
             @RequestParam(required = false) TicketStatus status,
             @RequestParam(required = false) Priority priority,
             @RequestParam(required = false) String category,
-            @RequestParam(required = false) Long assignedAgentId
+            @RequestParam(required = false) Long assignedAgentId,
+            Pageable pageable
     ) {
-        return ResponseEntity.ok(ticketService.searchTickets(status, priority, category, assignedAgentId));
+        return ResponseEntity.ok(ticketService.searchTickets(status, priority, category, assignedAgentId, pageable));
     }
 
     @GetMapping("/metrics/avg-resolution-time")

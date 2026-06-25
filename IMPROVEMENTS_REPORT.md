@@ -6,9 +6,56 @@ This report summarizes the work completed for the improvements described in `IMP
 
 ## Summary
 
-The frontend was updated to use user and agent list data instead of requiring manual ID entry in the main workflows. Role-based frontend access remains in place, and the updated frontend build was verified successfully.
+The backend now exposes list support for users and agents, and the frontend uses that data instead of requiring manual ID entry in the main workflows. Role-based frontend access remains in place. Backend tests and the frontend production build were both verified successfully.
 
 ## Implemented Improvements
+
+### Backend user list support
+
+Implemented backend support for listing users.
+
+Updated behavior:
+
+* The user service can return all users.
+* The user controller exposes a list endpoint.
+* The response uses the existing `UserResponse` DTO.
+
+Updated files:
+
+```text
+helpdesk/src/main/java/com/example/helpdesk/controller/UserController.java
+helpdesk/src/main/java/com/example/helpdesk/service/UserService.java
+```
+
+Current endpoint in this branch:
+
+```text
+GET /api/users/all
+```
+
+### Backend agent list support
+
+Implemented backend support for listing agents.
+
+Updated behavior:
+
+* The agent service can return all agents.
+* The agent controller exposes a list endpoint.
+* The response uses the existing `AgentResponse` DTO.
+* The response includes each agent active status, which the frontend uses for assignment filtering.
+
+Updated files:
+
+```text
+helpdesk/src/main/java/com/example/helpdesk/controller/AgentController.java
+helpdesk/src/main/java/com/example/helpdesk/service/AgentService.java
+```
+
+Current endpoint in this branch:
+
+```text
+GET /api/agents/all
+```
 
 ### User list support
 
@@ -67,7 +114,7 @@ Important: this is still frontend-only permission control. The project still has
 
 ## Endpoint Compatibility Note
 
- documents these list endpoints:
+`IMPROVEMENTS_TESTING.md` documents these list endpoints:
 
 ```text
 GET /api/users
@@ -83,6 +130,51 @@ GET /api/agents/all
 
 To keep the frontend compatible, the API helper now tries the documented endpoint first and falls back to the current `/all` endpoint if the first request returns `404` or `405`.
 
+Recommended backend cleanup:
+
+* If the project should exactly match `IMPROVEMENTS_TESTING.md`, change the backend list mappings from `@GetMapping("/all")` to `@GetMapping`.
+* If the `/all` endpoints are intentional, update `IMPROVEMENTS_TESTING.md` to document `GET /api/users/all` and `GET /api/agents/all`.
+
+## Verification
+
+Backend test command:
+
+```bash
+cd helpdesk
+mvn test
+```
+
+Backend result:
+
+```text
+BUILD SUCCESS
+Tests run: 1, Failures: 0, Errors: 0, Skipped: 0
+```
+
+Frontend build command:
+
+```bash
+cd frontend
+npm run build
+```
+
+Frontend result:
+
+```text
+vite build completed successfully
+```
+
+The Vite development server was also started and verified with:
+
+```text
+http://127.0.0.1:5173
+```
+
+Result:
+
+```text
+200 OK
+```
 
 ## Manual Testing Checklist
 
@@ -100,7 +192,3 @@ Use this checklist with the backend running at `http://localhost:8080` and the f
 * Employee/User status updates use the raising user.
 * Agent status updates use the assigned agent and are disabled when no agent is assigned.
 * Manager status updates send `changedByType: SYSTEM` and `changedById: null`.
-
-## Backend Verification Status
-
-Backend tests were not rerun as part of this frontend report. The frontend build was verified successfully.

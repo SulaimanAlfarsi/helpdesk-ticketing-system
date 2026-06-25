@@ -5,6 +5,7 @@ import { useParams } from "react-router-dom";
 import {
   addComment,
   assignTicket,
+  getAgents,
   getErrorMessage,
   getTicketById,
   updateTicketStatus
@@ -28,6 +29,8 @@ export default function TicketDetails() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [loadingAction, setLoadingAction] = useState("");
+  const [agents, setAgents] = useState([]);
+  const [loadingAgents, setLoadingAgents] = useState(false);
   const [assignForm, setAssignForm] = useState({ agentId: "" });
   const [statusForm, setStatusForm] = useState({ newStatus: "IN_PROGRESS", changedByType: "AGENT", changedById: "" });
   const [commentForm, setCommentForm] = useState({ authorType: "USER", authorId: "", message: "" });
@@ -94,6 +97,26 @@ export default function TicketDetails() {
     setCommentForm((previous) => ({ ...previous, authorType, authorId }));
   }
 
+  async function loadAgents() {
+    if (!canAssignTicket) {
+      return;
+    }
+
+    setLoadingAgents(true);
+    try {
+      const data = await getAgents();
+      const activeAgents = data.filter((agent) => agent.active);
+      setAgents(activeAgents);
+      if (activeAgents.length > 0) {
+        setAssignForm({ agentId: String(activeAgents[0].id) });
+      }
+    } catch (err) {
+      setError(getErrorMessage(err));
+    } finally {
+      setLoadingAgents(false);
+    }
+  }
+
   async function loadTicket() {
     setError("");
     try {
@@ -117,6 +140,7 @@ export default function TicketDetails() {
 
   useEffect(() => {
     loadTicket();
+    loadAgents();
   }, [id]);
 
   function updateAssign(event) {
@@ -149,6 +173,11 @@ export default function TicketDetails() {
       return;
     }
 
+    if (!assignForm.agentId) {
+      setError("Select an active agent before assigning this ticket.");
+      return;
+    }
+
     setLoadingAction("assign");
 
     try {
@@ -167,7 +196,7 @@ export default function TicketDetails() {
           setCommentForm((previous) => ({ ...previous, authorType, authorId }));
         }
       }
-      setAssignForm({ agentId: "" });
+      setAssignForm({ agentId: String(updated.assignedAgent?.id || "") });
       setSuccess("Ticket assigned successfully.");
     } catch (err) {
       setError(getErrorMessage(err));
@@ -245,6 +274,7 @@ export default function TicketDetails() {
 
   const selectedChangedBy = `${statusForm.changedByType}:${statusForm.changedById || ""}`;
   const selectedCommentAuthor = `${commentForm.authorType}:${commentForm.authorId || ""}`;
+  const activeAgents = agents.filter((agent) => agent.active);
 
   return (
     <section className="space-y-6">
@@ -348,8 +378,28 @@ export default function TicketDetails() {
             {canAssignTicket ? (
               <form onSubmit={submitAssign} className="card space-y-4">
                 <h3 className="text-lg font-bold text-neutral-950">Assign Agent</h3>
-                <input name="agentId" value={assignForm.agentId} onChange={updateAssign} placeholder="Agent ID" className="form-input" />
-                <motion.button whileTap={{ scale: 0.98 }} className="btn-primary w-full" type="submit" disabled={loadingAction === "assign"}>
+                <select
+                  name="agentId"
+                  value={assignForm.agentId}
+                  onChange={updateAssign}
+                  className="form-input"
+                  disabled={loadingAgents || activeAgents.length === 0}
+                  required
+                >
+                  {loadingAgents && <option value="">Loading active agents...</option>}
+                  {!loadingAgents && activeAgents.length === 0 && <option value="">No active agents available</option>}
+                  {!loadingAgents && activeAgents.map((agent) => (
+                    <option key={agent.id} value={agent.id}>
+                      {agent.name} (ID {agent.id})
+                    </option>
+                  ))}
+                </select>
+                <motion.button
+                  whileTap={{ scale: 0.98 }}
+                  className="btn-primary w-full"
+                  type="submit"
+                  disabled={loadingAction === "assign" || loadingAgents || activeAgents.length === 0}
+                >
                   {loadingAction === "assign" ? "Assigning..." : "Assign"}
                 </motion.button>
               </form>

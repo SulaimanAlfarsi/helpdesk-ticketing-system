@@ -2,117 +2,205 @@
 
 Date: 2026-06-25
 
-This report summarizes the work completed for the improvements described in `IMPROVEMENTS_TESTING.md`.
+This report summarizes the improvements merged through the project branches and the current verification status.
+
+## Branches Reviewed
+
+The Git history shows four improvement branches that were merged into `main`:
+
+```text
+feature/display-all-users-agets
+email-and-priority-status-bug-fix
+pagination_and_Validate_category
+fix-frontend
+```
 
 ## Summary
 
-The backend now exposes list support for users and agents, and the frontend uses that data instead of requiring manual ID entry in the main workflows. Role-based frontend access remains in place. Backend tests and the frontend production build were both verified successfully.
+The project was improved in both the backend and frontend. The backend added user and agent listing, stricter email validation, case-insensitive priority parsing, ticket pagination, and category validation. The frontend was then updated to use user and agent list data for dropdowns and management pages instead of requiring manual ID entry.
 
-## Implemented Improvements
+Role-based frontend access remains a UI-only feature. The project still intentionally has no authentication, JWT, or Spring Security.
 
-### Backend user list support
+## Improvements By Branch
 
-Implemented backend support for listing users.
+### `feature/display-all-users-agets`
 
-Updated behavior:
+Purpose:
 
-* The user service can return all users.
-* The user controller exposes a list endpoint.
-* The response uses the existing `UserResponse` DTO.
+* Add backend support for listing all users.
+* Add backend support for listing all agents.
+
+Backend changes:
+
+* Added `getAllUsers()` to `UserService`.
+* Added `GET /api/users/all` to `UserController`.
+* Added `getAllAgents()` to `AgentService`.
+* Added `GET /api/agents/all` to `AgentController`.
 
 Updated files:
 
 ```text
 helpdesk/src/main/java/com/example/helpdesk/controller/UserController.java
+helpdesk/src/main/java/com/example/helpdesk/controller/AgentController.java
 helpdesk/src/main/java/com/example/helpdesk/service/UserService.java
+helpdesk/src/main/java/com/example/helpdesk/service/AgentService.java
 ```
 
-Current endpoint in this branch:
+Result:
 
-```text
-GET /api/users/all
-```
+* The backend can now return lists of users and agents.
+* The frontend can use these lists for tables and dropdowns.
 
-### Backend agent list support
+### `email-and-priority-status-bug-fix`
 
-Implemented backend support for listing agents.
+Purpose:
 
-Updated behavior:
+* Fix priority case sensitivity.
+* Improve user and agent email domain validation.
 
-* The agent service can return all agents.
-* The agent controller exposes a list endpoint.
-* The response uses the existing `AgentResponse` DTO.
-* The response includes each agent active status, which the frontend uses for assignment filtering.
+Backend changes:
+
+* Added a `@JsonCreator` factory to the `Priority` enum.
+* Priority values are now converted to uppercase before enum parsing.
+* Added email domain validation in `UserService`.
+* Added email domain validation in `AgentService`.
 
 Updated files:
 
 ```text
-helpdesk/src/main/java/com/example/helpdesk/controller/AgentController.java
+helpdesk/src/main/java/com/example/helpdesk/enums/Priority.java
+helpdesk/src/main/java/com/example/helpdesk/service/UserService.java
 helpdesk/src/main/java/com/example/helpdesk/service/AgentService.java
 ```
 
-Current endpoint in this branch:
+Result:
+
+* Requests can send priority values like `low`, `medium`, `high`, or `critical` and still map to the correct enum.
+* Invalid email formats are rejected before creating users or agents.
+* Duplicate email validation still remains in place.
+
+Current validation message:
 
 ```text
-GET /api/agents/all
+Email must have a valid domain (e.g. .com or .om)
 ```
 
-### User list support
+### `pagination_and_Validate_category`
 
-Implemented frontend support for loading users from the backend.
+Purpose:
 
-Updated behavior:
+* Add pagination support to ticket search/listing.
+* Restrict ticket categories to a known set.
 
-* The Users page now loads existing users.
-* Created users appear in the users table after creation.
-* The Create Ticket page uses a user dropdown for `Raised by user ID`.
-* Ticket creation is disabled when no users are available.
+Backend changes:
+
+* Changed `GET /api/tickets` from returning `List<TicketResponse>` to returning `Page<TicketResponse>`.
+* Added `Pageable` support to `TicketController`.
+* Updated `TicketService.searchTickets(...)` to return a paginated result.
+* Added category validation to `CreateTicketRequest`.
+
+Updated files:
+
+```text
+helpdesk/src/main/java/com/example/helpdesk/controller/TicketController.java
+helpdesk/src/main/java/com/example/helpdesk/service/TicketService.java
+helpdesk/src/main/java/com/example/helpdesk/dto/CreateTicketRequest.java
+```
+
+Allowed ticket categories:
+
+```text
+Network
+Hardware
+Software
+Account
+Other
+```
+
+Result:
+
+* Ticket list/search endpoints can now support pagination using Spring `Pageable` parameters.
+* Ticket creation rejects categories outside the approved list.
+
+Important compatibility note:
+
+* Because `GET /api/tickets` now returns a Spring `Page`, frontend code that expects a plain array must read the `content` field.
+* The frontend build still passes, but ticket list/dashboard runtime behavior should be manually checked against the paginated response.
+
+### `fix-frontend`
+
+Purpose:
+
+* Update the frontend to use the new backend list data.
+* Replace manual user and agent ID entry with dropdowns.
+* Keep role-based UI behavior aligned with the testing guide.
+
+Frontend changes:
+
+* Added `getUsers()` and `getAgents()` API helpers.
+* Updated the Users page to list users.
+* Updated the Agents page to list agents and show active status.
+* Updated Create Ticket to use a user dropdown for `Raised by user ID`.
+* Updated Ticket Details to use an active-agent dropdown for assignment.
+* Disabled ticket creation when no users are available.
+* Disabled ticket assignment when no active agents are available.
 
 Updated files:
 
 ```text
 frontend/src/api/api.js
 frontend/src/pages/Users.jsx
-frontend/src/pages/CreateTicket.jsx
-```
-
-### Agent list support
-
-Implemented frontend support for loading agents from the backend.
-
-Updated behavior:
-
-* The Agents page now loads existing agents.
-* Created agents appear in the agents table after creation.
-* Agent active status is shown in the agents table.
-* Ticket assignment uses an agent dropdown.
-* Only active agents are shown in the ticket assignment dropdown.
-* Ticket assignment is disabled when no active agents are available.
-
-Updated files:
-
-```text
-frontend/src/api/api.js
 frontend/src/pages/Agents.jsx
+frontend/src/pages/CreateTicket.jsx
 frontend/src/pages/TicketDetails.jsx
 ```
 
-### Role permission behavior
+Result:
 
-The existing frontend-only role restrictions were reviewed and kept in place.
+* Managers can create and list users.
+* Managers can create and list agents.
+* Employees can select an existing user when creating a ticket.
+* Managers and agents can select an active agent when assigning a ticket.
+* Inactive agents are not shown in the assignment dropdown.
 
-Current behavior:
+## Current Backend Endpoints Added Or Changed
 
-* Employee/User can view tickets and create tickets.
-* Employee/User cannot access users, agents, dashboard, reports, or ticket assignment.
-* Agent can view dashboard and tickets.
-* Agent cannot create tickets, users, agents, or reports.
-* Manager can view dashboard, users, agents, tickets, and reports.
-* Manager status updates are sent as `SYSTEM` with `changedById: null`.
+### Users
 
-Important: this is still frontend-only permission control. The project still has no authentication, JWT, or Spring Security.
+```text
+POST /api/users
+GET  /api/users/all
+```
 
-## Endpoint Compatibility Note
+### Agents
+
+```text
+POST /api/agents
+GET  /api/agents/all
+```
+
+### Tickets
+
+```text
+GET  /api/tickets
+POST /api/tickets
+```
+
+`GET /api/tickets` now returns a paginated `Page<TicketResponse>` response.
+
+Example pagination query:
+
+```text
+GET /api/tickets?page=0&size=10
+```
+
+Existing filters still apply:
+
+```text
+GET /api/tickets?status=OPEN&priority=HIGH&category=Network&assignedAgentId=1&page=0&size=10
+```
+
+## Endpoint Compatibility Notes
 
 `IMPROVEMENTS_TESTING.md` documents these list endpoints:
 
@@ -121,19 +209,58 @@ GET /api/users
 GET /api/agents
 ```
 
-The current backend code in this branch exposes:
+The current backend code exposes:
 
 ```text
 GET /api/users/all
 GET /api/agents/all
 ```
 
-To keep the frontend compatible, the API helper now tries the documented endpoint first and falls back to the current `/all` endpoint if the first request returns `404` or `405`.
+The frontend API helper tries the documented endpoint first and falls back to `/all` if the first request returns `404` or `405`.
 
-Recommended backend cleanup:
+Recommended cleanup:
 
-* If the project should exactly match `IMPROVEMENTS_TESTING.md`, change the backend list mappings from `@GetMapping("/all")` to `@GetMapping`.
+* If the project should match `IMPROVEMENTS_TESTING.md`, change the backend mappings from `@GetMapping("/all")` to `@GetMapping`.
 * If the `/all` endpoints are intentional, update `IMPROVEMENTS_TESTING.md` to document `GET /api/users/all` and `GET /api/agents/all`.
+
+## Role Permission Behavior
+
+The role selector is still frontend-only. It stores the selected role locally and changes visible navigation/actions.
+
+Employee/User:
+
+* Can view tickets.
+* Can create tickets.
+* Cannot create users.
+* Cannot create agents.
+* Cannot open reports.
+* Cannot assign tickets.
+
+Agent:
+
+* Can view dashboard.
+* Can view tickets.
+* Can assign tickets.
+* Can update assigned tickets.
+* Cannot create tickets.
+* Cannot create users.
+* Cannot create agents.
+* Cannot open reports.
+
+Manager:
+
+* Can view dashboard.
+* Can create and list users.
+* Can create and list agents.
+* Can view tickets.
+* Can assign tickets.
+* Can open reports.
+* Status updates are sent as `SYSTEM` with `changedById: null`.
+
+Important:
+
+* These checks are not backend security.
+* A user can still call backend endpoints directly unless real authentication and authorization are added.
 
 ## Verification
 
@@ -164,7 +291,7 @@ Frontend result:
 vite build completed successfully
 ```
 
-The Vite development server was also started and verified with:
+Frontend dev server check:
 
 ```text
 http://127.0.0.1:5173
@@ -180,6 +307,21 @@ Result:
 
 Use this checklist with the backend running at `http://localhost:8080` and the frontend running at `http://localhost:5173`.
 
+### Backend checks
+
+* Create a user with a valid email.
+* Confirm an invalid user email is rejected.
+* List users with `GET /api/users/all`.
+* Create an agent with a valid email.
+* Confirm an invalid agent email is rejected.
+* List agents with `GET /api/agents/all`.
+* Create a ticket with a valid category.
+* Confirm an invalid category is rejected.
+* Create a ticket using lowercase priority, such as `high`, and confirm it is accepted as `HIGH`.
+* Call `GET /api/tickets?page=0&size=10` and confirm the response is paginated.
+
+### Frontend checks
+
 * Manager can create and list users.
 * Manager can create and list agents.
 * Employee/User sidebar shows only Tickets and Create Ticket.
@@ -192,3 +334,11 @@ Use this checklist with the backend running at `http://localhost:8080` and the f
 * Employee/User status updates use the raising user.
 * Agent status updates use the assigned agent and are disabled when no agent is assigned.
 * Manager status updates send `changedByType: SYSTEM` and `changedById: null`.
+
+## Follow-Up Recommendations
+
+* Align user and agent list endpoint paths between documentation and backend code.
+* Update the frontend ticket list and dashboard to unwrap paginated ticket responses using `response.content`.
+* Add backend tests for list users, list agents, email validation, priority parsing, category validation, and paginated ticket search.
+* Add frontend tests for role access, dropdown population, active-agent filtering, and ticket creation.
+* Add backend authorization if the project moves beyond frontend-only role simulation.

@@ -28,6 +28,8 @@ import com.example.helpdesk.repository.SlaPolicyRepository;
 import com.example.helpdesk.repository.TicketRepository;
 import com.example.helpdesk.repository.TicketStatusHistoryRepository;
 import com.example.helpdesk.repository.UserRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -178,7 +180,7 @@ public class TicketService {
     }
 
     @Transactional(readOnly = true)
-    public List<TicketResponse> searchTickets(TicketStatus status, Priority priority, String category, Long assignedAgentId) {
+    public Page<TicketResponse> searchTickets(TicketStatus status, Priority priority, String category, Long assignedAgentId, Pageable pageable) {
         Specification<Ticket> spec = (root, query, cb) -> cb.conjunction();
 
         if (status != null) {
@@ -197,9 +199,7 @@ public class TicketService {
             spec = spec.and((root, query, cb) -> cb.equal(root.get("assignedAgent").get("id"), assignedAgentId));
         }
 
-        return ticketRepository.findAll(spec).stream()
-                .map(this::toResponse)
-                .toList();
+        return ticketRepository.findAll(spec, pageable).map(this::toResponse);
     }
 
     @Transactional(readOnly = true)
